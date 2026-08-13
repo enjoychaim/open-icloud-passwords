@@ -118,7 +118,7 @@ Every ✅ above is backed by an automated test in `test-harness/automation/`. Th
 ### Installation
 
 ```bash
-git clone https://github.com/ManiForoughi2/open-icloud-passwords.git
+git clone https://github.com/enjoychaim/open-icloud-passwords.git
 ```
 
 1. Disable Apple's official iCloud Passwords extension (it occupies the same ID)

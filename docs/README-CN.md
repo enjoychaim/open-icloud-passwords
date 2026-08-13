@@ -118,7 +118,7 @@ Apple 官方的 iCloud Passwords Chrome 扩展在约 2600 条评分里只有 **2
 ### 安装步骤
 
 ```bash
-git clone https://github.com/ManiForoughi2/open-icloud-passwords.git
+git clone https://github.com/enjoychaim/open-icloud-passwords.git
 ```
 
 1. 禁用 Apple 官方 iCloud Passwords 扩展(它占用同一个 ID)
