@@ -5,8 +5,22 @@ console.log("[Open iCloud Passwords for Chrome] content script v0.45.0 loaded");
 const OTP_AUTOCOMPLETE = /one-time-code/i;
 const OTP_HINT = /\b(otp|one[\s-]?time|verification|2fa|mfa|sms[\s-]?code|auth[\s-]?code|security[\s-]?code|passcode)\b/i;
 
-function attrBlob(el) {
-  // read the wrapping <label>/aria-labelledby too - snapchat's web login leaves the input bare and labels it there
+function toCamelCase(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/([a-z\d])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .replace(/[^a-zA-Z0-9\u4e00-\u9fff]+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part, index) => {
+      const lower = part.toLowerCase();
+      return index === 0 ? lower : lower[0].toUpperCase() + lower.slice(1);
+    })
+    .join("");
+}
+
+function identityAttributeValues(el) {
   let labelText = "";
   try {
     if (el.labels?.length) labelText = Array.from(el.labels, (l) => l.textContent).join(" ");
@@ -15,9 +29,15 @@ function attrBlob(el) {
       labelText += " " + lb.split(/\s+/).map((id) => el.ownerDocument.getElementById(id)?.textContent || "").join(" ");
     }
   } catch {}
-  return [el.name, el.id, el.getAttribute("aria-label"), el.placeholder, el.getAttribute("autocomplete"), labelText]
-    .filter(Boolean)
-    .join(" ");
+  return [el.name, el.id, el.getAttribute("aria-label"), el.placeholder, el.getAttribute("autocomplete"), labelText].filter(Boolean);
+}
+
+function attrBlob(el) {
+  return identityAttributeValues(el).join(" ");
+}
+
+function normalizedIdentityNames(el) {
+  return identityAttributeValues(el).map(toCamelCase).filter(Boolean);
 }
 
 function isOtpField(el) {
@@ -75,13 +95,18 @@ function pageHasVisiblePassword(field) {
 }
 
 // unambiguous "this box takes your account identifier" markers
+const STRONG_IDENTITY_NAMES = new Set([
+  "email", "emailAddress", "signInId", "loginId", "userId", "username", "userName", "loginName", "account", "passkey",
+  "账号", "帐号", "账户", "登录账号", "登录名", "用户名", "邮箱", "手机号", "工号",
+]);
+
 function hasStrongIdentitySignal(el) {
   const t = (el.type || "text").toLowerCase();
   const ac = (el.getAttribute("autocomplete") || "").toLowerCase();
   // webauthn = a passkey/identity field (wells fargo, nintendo mark their username box "webauthn"), treat as login
   if (ac.includes("username") || ac.includes("email") || ac.includes("webauthn")) return true;
   if (t === "email") return true;
-  return /\b(e[\s-]?mail|sign[\s-]?in[\s-]?id|log[\s-]?in[\s-]?id|user[\s-]?id|username|passkey)\b/i.test(attrBlob(el));
+  return normalizedIdentityNames(el).some((name) => STRONG_IDENTITY_NAMES.has(name));
 }
 
 const LOGINISH = /log[\s_-]?in|sign[\s_-]?in|auth|session|sso|oauth|account|idp|passport/i;
@@ -112,7 +137,7 @@ function isUsernameField(el) {
   // otherwise a weak login token still counts, but reject search/tag/comment/address/checkout
   const blob = attrBlob(el);
   if (NONLOGIN_HINT.test(blob)) return false;
-  return /\b(user|login|signin|sign[\s-]?in|loginid)\b/i.test(blob);
+  return normalizedIdentityNames(el).some((name) => ["user", "login", "signin", "signIn", "loginId"].includes(name));
 }
 
 // native value setter + input/change so react/vue/angular re-sync (fixes "login fails until you edit a char")
