@@ -48,11 +48,19 @@
       </section>
     </main>
 
-    <!-- Footer: toggles for the browser password manager and passkey autofill -->
+    <!-- Footer: toggles for the browser's own password/autofill features -->
     <footer>
+      <label id="pm-row" class="switch-row" hidden>
+        <span>Hide browser save-password bubble<span id="pm-note" class="subnote"></span></span>
+        <input type="checkbox" id="pm-toggle" class="switch" />
+      </label>
       <label id="policy-row" class="switch-row">
         <span>Hide browser password manager entirely<span id="policy-note" class="subnote"></span></span>
         <input type="checkbox" id="policy-toggle" class="switch" />
+      </label>
+      <label id="af-row" class="switch-row" hidden>
+        <span>Hide browser autofill suggestions<span id="af-note" class="subnote"></span></span>
+        <input type="checkbox" id="af-toggle" class="switch" />
       </label>
       <label id="pk-row" class="switch-row">
         <span>Hide passkey autofill</span>

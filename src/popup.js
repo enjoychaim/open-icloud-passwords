@@ -13,6 +13,50 @@ function show(name) {
   for (const [k, el] of Object.entries(views)) el.hidden = k !== name;
 }
 
+// togglable suppression of the browser's save/update bubble. ON sets the pref off, OFF hands
+// control back to the browser. the choice persists and the background respects it on startup
+const pmToggle = document.getElementById("pm-toggle");
+const pmNote = document.getElementById("pm-note");
+
+function renderPmToggle() {
+  const pref = chrome.privacy?.services?.passwordSavingEnabled;
+  const row = document.getElementById("pm-row");
+  if (!pref?.get) return;
+  pref.get({}, (d) => {
+    if (chrome.runtime.lastError || !d) return;
+    row.hidden = false;
+    pmToggle.checked = d.value === false;
+    const controllable =
+      d.levelOfControl === "controllable_by_this_extension" ||
+      d.levelOfControl === "controlled_by_this_extension";
+    pmToggle.disabled = !controllable;
+    pmNote.textContent = controllable
+      ? ""
+      : d.levelOfControl === "controlled_by_other_extensions"
+        ? "controlled by another extension"
+        : "controlled by browser policy";
+  });
+}
+
+pmToggle.addEventListener("change", () => {
+  const pref = chrome.privacy?.services?.passwordSavingEnabled;
+  if (!pref) return;
+  const on = pmToggle.checked;
+  chrome.storage?.local?.set({ suppressSaveBubble: on });
+  // read back after writing - dont trust the callback, the browser can silently refuse
+  const verify = () =>
+    pref.get({}, (d) => {
+      renderPmToggle();
+      if (on && d && d.value !== false) {
+        pmNote.textContent = "browser refused it - flip it in password settings below";
+      }
+    });
+  if (on) pref.set({ value: false }, verify);
+  else pref.clear({}, verify);
+});
+
+renderPmToggle();
+
 // hide the browser password manager via a real macOS config profile (a user defaults write isnt forced), approved once in System Settings
 const policyToggle = document.getElementById("policy-toggle");
 const policyNote = document.getElementById("policy-note");
@@ -60,6 +104,45 @@ policyToggle.addEventListener("change", async () => {
 });
 
 renderPolicyToggle();
+
+// hides the browser's address/contact autofill and typed-form history (the email-list
+// dropdown). credit-card autofill stays untouched so google pay keeps working
+const afToggle = document.getElementById("af-toggle");
+const afNote = document.getElementById("af-note");
+
+function renderAfToggle() {
+  const pref = chrome.privacy?.services?.autofillAddressEnabled;
+  const row = document.getElementById("af-row");
+  if (!pref?.get) return;
+  pref.get({}, (d) => {
+    if (chrome.runtime.lastError || !d) return;
+    row.hidden = false;
+    afToggle.checked = d.value === false;
+    const controllable =
+      d.levelOfControl === "controllable_by_this_extension" ||
+      d.levelOfControl === "controlled_by_this_extension";
+    afToggle.disabled = !controllable;
+    afNote.textContent = controllable ? "" : "controlled elsewhere";
+  });
+}
+
+afToggle.addEventListener("change", () => {
+  const pref = chrome.privacy?.services?.autofillAddressEnabled;
+  if (!pref) return;
+  const on = afToggle.checked;
+  chrome.storage?.local?.set({ suppressAddressAutofill: on });
+  const verify = () =>
+    pref.get({}, (d) => {
+      renderAfToggle();
+      if (on && d && d.value !== false) {
+        afNote.textContent = "browser refused it - flip it in autofill settings";
+      }
+    });
+  if (on) pref.set({ value: false }, verify);
+  else pref.clear({}, verify);
+});
+
+renderAfToggle();
 
 // swallow the browser's conditional passkey autofill dropdown; plain stored flag the MAIN-world guard reads, explicit sign-in unaffected
 const pkToggle = document.getElementById("pk-toggle");

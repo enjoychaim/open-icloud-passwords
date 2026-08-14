@@ -156,6 +156,28 @@ chrome.runtime.onStartup.addListener(ensureConnected);
 chrome.runtime.onInstalled.addListener(ensureConnected);
 ensureConnected();
 
+// suppress only chrome password autofill, leave address + credit-card/google pay alone
+function suppressChromeAutofill() {
+  const svc = chrome.privacy?.services;
+  if (!svc?.passwordSavingEnabled) return;
+  // user-togglable from the popup, persisted choices. save bubble defaults on, address
+  // autofill defaults off (credit-card autofill is never touched, google pay keeps working)
+  chrome.storage?.local?.get({ suppressSaveBubble: true, suppressAddressAutofill: false }, (o) => {
+    if (chrome.runtime.lastError) return;
+    try {
+      if (o.suppressSaveBubble) {
+        svc.passwordSavingEnabled.set({ value: false }, () => void chrome.runtime.lastError);
+      }
+      if (o.suppressAddressAutofill && svc.autofillAddressEnabled) {
+        svc.autofillAddressEnabled.set({ value: false }, () => void chrome.runtime.lastError);
+      }
+    } catch (_) {}
+  });
+}
+chrome.runtime.onInstalled.addListener(suppressChromeAutofill);
+chrome.runtime.onStartup.addListener(suppressChromeAutofill);
+suppressChromeAutofill();
+
 // only the extension's own popup may drive privileged actions (content messages carry sender.tab, the popup never does)
 function isFromOwnUi(sender) {
   return sender.id === chrome.runtime.id && sender.tab === undefined;

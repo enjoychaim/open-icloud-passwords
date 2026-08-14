@@ -47,7 +47,9 @@
   ],
   "permissions": [
     "nativeMessaging",
+    "activeTab",
     "alarms",
+    "privacy",
     "storage"
   ],
   "host_permissions": [
